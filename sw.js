@@ -1,5 +1,5 @@
 // App shell cached for offline use; wrs.json always tries the network first.
-const CACHE = 'mkw-v1';
+const CACHE = 'mkw-v2';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {

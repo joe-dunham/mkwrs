@@ -119,6 +119,8 @@ function load() {
     cat: 'all', sort: 'n', dir: 1, timedOnly: false,
   }, s);
 }
+// pull the latest saved data into this window before changing anything
+function sync() { Object.assign(state, load()); }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 
 /* ---------- time helpers ---------- */
@@ -161,6 +163,7 @@ async function fetchWRs(manual) {
 
 function detectNewWRs() {
   if (!WR) return;
+  sync();
   for (const t of WR.tracks) {
     const prev = state.seen[t.track];
     if (prev == null) { state.seen[t.track] = t.ms; continue; }   // first sighting: no flag
@@ -243,13 +246,14 @@ function render() {
 }
 
 /* ---------- actions ---------- */
-function setCat(k) { state.cat = k; save(); render(); }
-function toggleTimed() { state.timedOnly = !state.timedOnly; save(); render(); }
+function setCat(k) { sync(); state.cat = k; save(); render(); }
+function toggleTimed() { sync(); state.timedOnly = !state.timedOnly; save(); render(); }
 function setSort(k) {
+  sync();
   if (state.sort === k) state.dir *= -1; else { state.sort = k; state.dir = 1; }
   save(); render();
 }
-function clearFlags() { state.flags = {}; if (state.cat === 'new') state.cat = 'all'; save(); render(); }
+function clearFlags() { sync(); state.flags = {}; if (state.cat === 'new') state.cat = 'all'; save(); render(); }
 
 function openSheet(track) {
   openTrack = track;
@@ -295,16 +299,18 @@ function closeSheet() { document.getElementById('sheetWrap').classList.remove('o
 function addTime() {
   const ms = parseTime(document.getElementById('timeIn').value);
   if (ms == null) { toast('Type digits like 152430'); return; }
+  sync();
   const h = state.times[openTrack] = state.times[openTrack] || [];
   if (!h.some(x => x.ms === ms)) h.push({ ms, date: today() });
   save(); render(); openSheet(openTrack); toast('Saved ' + fmt(ms));
 }
 function delTime(ms, date) {
   if (!confirm('Delete ' + fmt(ms) + '?')) return;
+  sync();
   state.times[openTrack] = (state.times[openTrack] || []).filter(x => !(x.ms === ms && x.date === date));
   save(); render(); openSheet(openTrack);
 }
-function clearFlag() { delete state.flags[openTrack]; save(); render(); openSheet(openTrack); }
+function clearFlag() { sync(); delete state.flags[openTrack]; save(); render(); openSheet(openTrack); }
 
 function openMenu() {
   document.getElementById('sheet').innerHTML = `<h2>Menu</h2><div class="menu">
@@ -356,8 +362,10 @@ document.getElementById('menuBtn').onclick = openMenu;
 document.getElementById('refreshBtn').onclick = () => fetchWRs(true);
 document.getElementById('search').addEventListener('input', render);
 window.addEventListener('popstate', closeSheet);
+window.addEventListener('storage', e => { if (e.key === KEY) { sync(); render(); } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchWRs(false); });
 
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 fetchWRs(false);
 </script>
